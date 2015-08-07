@@ -18,7 +18,7 @@ $ pip install poll
 Example
 -------
 
-An function which retries a Web request until the resource exists:
+A function which retries a Web request until the resource exists:
 
 ```python
 from poll import poll
