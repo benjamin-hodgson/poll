@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='poll',
-    version='0.1',
+    version='0.1.1',
     author="Benjamin Hodgson",
     author_email="benjamin.hodgson@huddle.net",
     url="https://github.com/benjamin-hodgson/build",

@@ -10,7 +10,7 @@ install:
 
 script:
   - flake8 src --ignore=E501
-  - python -m doctest src/build.py
+  - python -m doctest src/poll/__init__.py
   - cd doc && make html
 
 deploy:
