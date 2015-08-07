@@ -21,7 +21,7 @@ Example
 An function which retries a Web request until the resource exists:
 
 ```python
-import poll
+from poll import poll
 import requests
 
 @poll(lambda response: response.status_code != 404)
