@@ -18,13 +18,13 @@ $ pip install poll
 Example
 -------
 
-A function which retries a Web request until the resource exists:
+A function which retries a Web request every second until the resource exists, up to a maximum of 15 seconds:
 
 ```python
 from poll import poll
 import requests
 
-@poll(lambda response: response.status_code != 404)
+@poll(lambda response: response.status_code != 404, timeout=15, interval=1)
 def wait_until_exists(uri):
     return requests.get(uri)
 ```
