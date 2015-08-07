@@ -12,7 +12,7 @@ setup(
     version='0.1.1',
     author="Benjamin Hodgson",
     author_email="benjamin.hodgson@huddle.net",
-    url="https://github.com/benjamin-hodgson/build",
+    url="https://github.com/benjamin-hodgson/poll",
     description="Utilities for polling, retrying, and exception handling",
     package_dir={'': 'src'},
     packages=find_packages('src'),
