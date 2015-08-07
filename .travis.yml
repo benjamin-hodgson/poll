@@ -1,0 +1,24 @@
+language: python
+
+python:
+  - '3.3'
+  - '3.4'
+
+install:
+  - pip install sphinx flake8
+  - python setup.py install
+
+script:
+  - flake8 src --ignore=E501
+  - python -m doctest src/build.py
+  - cd doc && make html
+
+deploy:
+  provider: pypi
+  user: benjamin.hodgson
+  password:
+    secure: "RxxMi03He8ewTxT/bpelHuiCYFzQsqQNOhkEMuAx+sJJRHdLoh6aLb93HA99Vfp5MJwaZPem7VWq3ke4OOkAjRCHKYWrDcE9SRL1Yn3nauTmQ5hh6hmBzIF9ZmXYdx88IMy4sOkg6eL8gmuVSJD/3iVCdoNltoWgkIF/ecedVng="
+  on:
+    tags: true
+    all_branches: true
+  distributions: "sdist bdist_wheel bdist_egg"
