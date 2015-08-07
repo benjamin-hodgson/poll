@@ -1,5 +1,9 @@
 `poll`
 ======
+
+[![Build Status](https://travis-ci.org/benjamin-hodgson/poll.svg)](https://travis-ci.org/benjamin-hodgson/poll)
+[![Documentation Status](https://readthedocs.org/projects/poll/badge/?version=v0.1)](https://readthedocs.org/projects/poll/?badge=v0.1)
+
 Utilities for polling, retrying, and exception handling.
 
 
