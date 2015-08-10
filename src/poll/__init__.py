@@ -138,15 +138,16 @@ def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: N
     while True:
         try:
             result = f(*args, **kwargs)
-            if until(result):
-                return result
         except BaseException as e:
             # if on_error takes 0, 1 or 2 arguments, supply none, one, or both of (e, count)
             arg_count = len(inspect.signature(on_error).parameters)
-            on_error(*[e, count][:arg_count])
+            on_error(*(e, count)[:arg_count])
             count += 1
             if count >= times or not isinstance(e, exs):
                 raise
+        else:
+            if until(result):
+                return result
         time.sleep(interval)
         if time.perf_counter() - start_time > timeout:
             raise TimeoutError("The operation {} timed out after {} seconds".format(f.__name__, timeout))
