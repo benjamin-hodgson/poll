@@ -16,7 +16,9 @@ def poll(until, timeout=15, interval=1):
         ``until`` should return ``True`` if the operation was successful
         (and retrying should stop) and ``False`` if retrying should continue.
     :param float timeout: How long to keep retrying the operation in seconds
-    :param float interval: How long to sleep in between attempts in seconds
+    :param float interval: How long to sleep between attempts in seconds
+
+    :return: The final return value of the decorated function
 
     >>> class TestPoll:
     ...     def __init__(self):
@@ -56,6 +58,8 @@ def poll_(f, until, timeout=15, interval=1, *args, **kwargs):
     :param float interval: How long to sleep in between attempts in seconds
 
     Any other arguments are forwarded to ``f``.
+
+    :return: The final return value of the function ``f``.
     """
     result = None
     start_time = time.perf_counter()
