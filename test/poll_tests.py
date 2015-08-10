@@ -1,4 +1,4 @@
-from poll import poll
+from poll import poll, poll_
 from contexts import catch
 
 
@@ -7,10 +7,13 @@ class WhenConditionIsTrueFirstTime:
         self.x = 0
 
     def when_i_execute_the_function_to_poll(self):
-        self.function_to_poll()
+        self.result = self.function_to_poll()
 
     def it_should_run_it_once(self):
         assert self.x == 1
+
+    def it_should_return_the_final_answer(self):
+        assert self.result is self.x
 
     @poll(lambda x: x == 1, interval=0.001)
     def function_to_poll(self):
@@ -23,10 +26,13 @@ class WhenConditionIsTrueAfterAFewTries:
         self.x = 0
 
     def when_i_execute_the_function_to_poll(self):
-        self.function_to_poll()
+        self.result = self.function_to_poll()
 
     def it_should_keep_trying(self):
         assert self.x == 3
+
+    def it_should_return_the_final_answer(self):
+        assert self.result is self.x
 
     @poll(lambda x: x == 3, interval=0.001)
     def function_to_poll(self):
@@ -79,6 +85,91 @@ class WhenConditionThrowsAnError:
         assert self.exception is self.to_throw
 
     @poll(lambda self: self.throw(), interval=0.001)
+    def function_to_poll(self):
+        return self
+
+    def throw(self):
+        raise self.to_throw
+
+
+class WhenPollingAtUseSiteAndConditionIsTrueFirstTime:
+    def given_a_call_counter(self):
+        self.x = 0
+
+    def when_i_execute_the_function_to_poll(self):
+        self.result = poll_(self.function_to_poll, lambda x: x == 1, interval=0.001)
+
+    def it_should_run_it_once(self):
+        assert self.x == 1
+
+    def it_should_return_the_final_answer(self):
+        assert self.result is self.x
+
+    def function_to_poll(self):
+        self.x += 1
+        return self.x
+
+
+class WhenPollingAtUseSiteAndConditionIsTrueAfterAFewTries:
+    def given_a_call_counter(self):
+        self.x = 0
+
+    def when_i_execute_the_function_to_poll(self):
+        self.result = poll_(self.function_to_poll, lambda x: x == 3, interval=0.001)
+
+    def it_should_keep_trying(self):
+        assert self.x == 3
+
+    def it_should_return_the_final_answer(self):
+        assert self.result is self.x
+
+    def function_to_poll(self):
+        self.x += 1
+        return self.x
+
+
+class WhenPollingAtUseSiteAndConditionIsNotTrueInTime:
+    def given_a_call_counter(self):
+        self.x = 0
+
+    def when_i_execute_the_function_to_poll(self):
+        self.exception = catch(poll_, self.function_to_poll, lambda x: x == 3, timeout=0.01, interval=0.0045)
+
+    def it_should_keep_trying(self):
+        assert self.x == 3
+
+    def it_should_throw(self):
+        assert isinstance(self.exception, TimeoutError)
+
+    def function_to_poll(self):
+        self.x += 1
+        return self.x
+
+
+class WhenPollingAtUseSiteAndFunctionThrowsAnError:
+    def given_an_exception(self):
+        self.to_throw = Exception()
+
+    def when_i_execute_the_function_to_poll(self):
+        self.exception = catch(poll_, self.function_to_poll, lambda x: x == 1, interval=0.001)
+
+    def it_should_bubble_the_exception_out(self):
+        assert self.exception is self.to_throw
+
+    def function_to_poll(self):
+        raise self.to_throw
+
+
+class WhenPollingAtUseSiteAndConditionThrowsAnError:
+    def given_an_exception(self):
+        self.to_throw = Exception()
+
+    def when_i_execute_the_function_to_poll(self):
+        self.exception = catch(poll_, self.function_to_poll, lambda self: self.throw(), interval=0.001)
+
+    def it_should_bubble_the_exception_out(self):
+        assert self.exception is self.to_throw
+
     def function_to_poll(self):
         return self
 
