@@ -102,6 +102,40 @@ def retry_(f, ex, times=3, interval=1, on_error=lambda e, x: None, *args, **kwar
     return exec_(f, ex, lambda _: True, times, float("inf"), interval, on_error, *args, **kwargs)
 
 
+def circuitbreaker(ex, threshold, reset_timeout):
+    def decorator(f):
+        failure_counter = FailureCounter(reset_timeout)
+
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if failure_counter.count() > threshold:
+                raise CircuitBrokenError
+
+            try:
+                result = f(*args, **kwargs)
+            except:
+                failure_counter.add_failure()
+                raise
+            return result
+        wrapper.failure_count = lambda: failure_counter.count()
+
+        return wrapper
+    return decorator
+
+
+class FailureCounter(object):
+    def __init__(self, timeout):
+        self._failure_times = []
+        self._timeout = timeout
+
+    def add_failure(self):
+        self._failure_times.append(time.perf_counter())
+
+    def count(self):
+        current_time = time.perf_counter()
+        return len([x for x in self._failure_times if current_time - x < self._timeout])
+
+
 def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: None, *args, **kwargs):
     """
     General function for polling, retrying, and handling errors.
@@ -111,7 +145,7 @@ def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: N
     :param until: The success condition.
         ``until`` should be a function; it will be called with
         the return value of the function.
-        ``until`` should return ``True`` if the operation was successful
+        ``until(x)`` should return ``True`` if the operation was successful
         (and retrying should stop) and ``False`` if retrying should continue.
     :param times: The maximum number of times to retry
     :param interval: The amount of time to sleep between retries
@@ -151,3 +185,7 @@ def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: N
         time.sleep(interval)
         if time.perf_counter() - start_time > timeout:
             raise TimeoutError("The operation {} timed out after {} seconds".format(f.__name__, timeout))
+
+
+class CircuitBrokenError(Exception):
+    pass
