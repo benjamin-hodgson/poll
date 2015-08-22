@@ -74,7 +74,7 @@ class WhenConditionIsNotTrueInTime:
     def it_should_throw(self):
         assert isinstance(self.exception, TimeoutError)
 
-    @poll(lambda x: x == 3, timeout=0.005, interval=0.003)
+    @poll(lambda x: x == 3, timeout=0.04, interval=0.03)
     def function_to_poll(self):
         self.x += 1
         return self.x
@@ -175,7 +175,7 @@ class WhenPollingAtUseSiteAndConditionIsNotTrueInTime:
         self.x = 0
 
     def when_i_poll_the_function(self):
-        self.exception = catch(poll_, self.function_to_poll, lambda x: x == 3, timeout=0.005, interval=0.003)
+        self.exception = catch(poll_, self.function_to_poll, lambda x: x == 3, timeout=0.04, interval=0.03)
 
     def it_should_keep_trying(self):
         assert self.x == 2

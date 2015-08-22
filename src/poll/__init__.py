@@ -103,37 +103,82 @@ def retry_(f, ex, times=3, interval=1, on_error=lambda e, x: None, *args, **kwar
 
 
 def circuitbreaker(ex, threshold, reset_timeout):
+    """
+    Decorator for functions which should be retried using the
+    Circuit Breaker pattern: http://martinfowler.com/bliki/CircuitBreaker.html
+
+    :param ex: The class of the exception to catch, or an iterable of classes.
+    :param threshold: The number of times a failure can occur before
+        the circuit is broken.
+    :param reset_timeout: The length of time, in seconds, that a broken
+        circuit should remain broken.
+    """
+
+    if isinstance(ex, collections.Iterable):
+        exs = tuple(ex)
+    else:
+        exs = (ex,)
+
     def decorator(f):
-        failure_counter = FailureCounter(reset_timeout)
+        failure_counter = _Circuit(threshold, reset_timeout)
 
         @wraps(f)
         def wrapper(*args, **kwargs):
-            if failure_counter.count() > threshold:
-                raise CircuitBrokenError
+            state = failure_counter.state()
+            if state == "broken":
+                time_remaining = failure_counter.time_remaining()
+                message = "The circuit for {} was broken. Try again in {}".format(f.__name__, time_remaining)
+                raise CircuitBrokenError(message, time_remaining)
 
             try:
                 result = f(*args, **kwargs)
-            except:
-                failure_counter.add_failure()
+            except BaseException as e:
+                if isinstance(e, exs):
+                    failure_counter.add_failure()
                 raise
+            failure_counter.add_success()
             return result
-        wrapper.failure_count = lambda: failure_counter.count()
 
         return wrapper
     return decorator
 
 
-class FailureCounter(object):
-    def __init__(self, timeout):
+class _Circuit(object):
+    def __init__(self, threshold, timeout):
         self._failure_times = []
+        self._threshold = threshold
         self._timeout = timeout
+        self._broken_time = None
+
+    def state(self):
+        if self._broken_time is not None:
+            if self._is_halfbroken():
+                return "halfbroken"
+            return "broken"
+        return "ok"
 
     def add_failure(self):
         self._failure_times.append(time.perf_counter())
+        if self._count() >= self._threshold or self._is_halfbroken():
+            self._broken_time = time.perf_counter()
 
-    def count(self):
+    def add_success(self):
+        if self._is_halfbroken():
+            self._failure_times = []
+        self._broken_time = None
+
+    def time_remaining(self):
+        return self._timeout - self._time_since_broken()
+
+    def _count(self):
         current_time = time.perf_counter()
         return len([x for x in self._failure_times if current_time - x < self._timeout])
+
+    def _is_halfbroken(self):
+        return self._broken_time is not None and self._time_since_broken() >= self._timeout
+
+    def _time_since_broken(self):
+        return time.perf_counter() - self._broken_time
 
 
 def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: None, *args, **kwargs):
@@ -188,4 +233,6 @@ def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: N
 
 
 class CircuitBrokenError(Exception):
-    pass
+    def __init__(self, message="", time_remaining=0):
+        super().__init__(message)
+        self.time_remaining = time_remaining
