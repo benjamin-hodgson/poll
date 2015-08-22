@@ -171,6 +171,7 @@ class _Circuit(object):
         return self._timeout - self._time_since_broken()
 
     def _count(self):
+        # todo: use a better data structure; get _count() down to O(1)
         current_time = time.perf_counter()
         return len([x for x in self._failure_times if current_time - x < self._timeout])
 
