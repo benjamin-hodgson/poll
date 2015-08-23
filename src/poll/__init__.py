@@ -145,7 +145,7 @@ def circuitbreaker(ex, threshold, reset_timeout):
 
 class _Circuit(object):
     def __init__(self, threshold, timeout):
-        self._failure_times = []
+        self._failure_times = collections.deque()
         self._threshold = threshold
         self._timeout = timeout
         self._broken_time = None
@@ -158,28 +158,34 @@ class _Circuit(object):
         return "ok"
 
     def add_failure(self):
+        self._update_failures()
         self._failure_times.append(time.perf_counter())
-        if self._count() >= self._threshold or self._is_halfbroken():
+        if len(self._failure_times) >= self._threshold or self._is_halfbroken():
             self._broken_time = time.perf_counter()
 
     def add_success(self):
         if self._is_halfbroken():
-            self._failure_times = []
+            self._failure_times = collections.deque()
+        self._update_failures()
         self._broken_time = None
 
     def time_remaining(self):
-        return self._timeout - self._time_since_broken()
-
-    def _count(self):
-        # todo: use a better data structure; get _count() down to O(1)
-        current_time = time.perf_counter()
-        return len([x for x in self._failure_times if current_time - x < self._timeout])
+        if self._broken_time is None:
+            return 0
+        result = self._timeout - self._time_since_broken()
+        return result if result > 0 else 0
 
     def _is_halfbroken(self):
         return self._broken_time is not None and self._time_since_broken() >= self._timeout
 
     def _time_since_broken(self):
         return time.perf_counter() - self._broken_time
+
+    def _update_failures(self):
+        current_time = time.perf_counter()
+        while self._failure_times and self._failure_times[0] < (current_time - self._timeout):
+            result = self._failure_times.popleft()
+            print(result, self._failure_times[0] if self._failure_times else None)
 
 
 def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: None, *args, **kwargs):
