@@ -1,3 +1,4 @@
+from unittest import mock
 from poll import poll, poll_
 from contexts import catch
 
@@ -64,6 +65,10 @@ class WhenConditionIsTrueAfterAFewTries:
 class WhenConditionIsNotTrueInTime:
     def given_a_call_counter(self):
         self.x = 0
+        self.sleep_patch = mock.patch('time.sleep')
+        self.perf_counter_patch = mock.patch('time.perf_counter', return_value=0)
+        self.sleep_patch.start()
+        self.perf_counter = self.perf_counter_patch.start()
 
     def when_i_execute_the_function_to_poll(self):
         self.exception = catch(self.function_to_poll)
@@ -74,9 +79,14 @@ class WhenConditionIsNotTrueInTime:
     def it_should_throw(self):
         assert isinstance(self.exception, TimeoutError)
 
+    def cleanup_the_patches(self):
+        self.sleep_patch.stop()
+        self.perf_counter_patch.stop()
+
     @poll(lambda x: x == 3, timeout=0.04, interval=0.03)
     def function_to_poll(self):
         self.x += 1
+        self.perf_counter.return_value += 0.03
         return self.x
 
 
@@ -173,6 +183,10 @@ class WhenPollingAtUseSiteAndConditionIsTrueAfterAFewTries:
 class WhenPollingAtUseSiteAndConditionIsNotTrueInTime:
     def given_a_call_counter(self):
         self.x = 0
+        self.sleep_patch = mock.patch('time.sleep')
+        self.perf_counter_patch = mock.patch('time.perf_counter', return_value=0)
+        self.sleep_patch.start()
+        self.perf_counter = self.perf_counter_patch.start()
 
     def when_i_poll_the_function(self):
         self.exception = catch(poll_, self.function_to_poll, lambda x: x == 3, timeout=0.04, interval=0.03)
@@ -183,8 +197,13 @@ class WhenPollingAtUseSiteAndConditionIsNotTrueInTime:
     def it_should_throw(self):
         assert isinstance(self.exception, TimeoutError)
 
+    def cleanup_the_patches(self):
+        self.sleep_patch.stop()
+        self.perf_counter_patch.stop()
+
     def function_to_poll(self):
         self.x += 1
+        self.perf_counter.return_value += 0.03
         return self.x
 
 
