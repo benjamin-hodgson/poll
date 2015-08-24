@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='poll',
-    version='0.1.1',
+    version='1.0',
     author="Benjamin Hodgson",
     author_email="benjamin.hodgson@huddle.net",
     url="https://github.com/benjamin-hodgson/poll",
@@ -18,8 +18,9 @@ setup(
     packages=find_packages('src'),
     install_requires=["setuptools"],
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python",
+        "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Developers",
