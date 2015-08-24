@@ -12,7 +12,7 @@ def poll(until, timeout=15, interval=1):
     Decorator for functions that should be repeated until a condition
     or a timeout.
 
-    :param until: The success condition.
+    :param function until: The success condition.
         ``until`` should be a function; it will be called with
         the return value of the function.
         ``until`` should return ``True`` if the operation was successful
@@ -21,6 +21,8 @@ def poll(until, timeout=15, interval=1):
     :param float interval: How long to sleep between attempts in seconds
 
     :return: The final return value of the decorated function
+    :raises TimeoutError: The condition did not become true
+        within the specified timeout.
     """
     def decorator(f):
         @wraps(f)
@@ -35,8 +37,8 @@ def poll_(f, until, timeout=15, interval=1, *args, **kwargs):
     Repeatedly call a function until a condition becomes
     true or a timeout expires.
 
-    :param f: The function to poll
-    :param until: The success condition.
+    :param function f: The function to poll
+    :param function until: The success condition.
         ``until`` should be a function; it will be called with
         the return value of the function.
         ``until`` should return ``True`` if the operation was successful
@@ -47,6 +49,8 @@ def poll_(f, until, timeout=15, interval=1, *args, **kwargs):
     Any other arguments are forwarded to ``f``.
 
     :return: The final return value of the function ``f``.
+    :raises TimeoutError: The condition did not become true
+        within the specified timeout.
     """
     return exec_(f, (), until, float("inf"), timeout, interval, lambda e, x: None, *args, **kwargs)
 
@@ -56,19 +60,27 @@ def retry(ex, times=3, interval=1, on_error=lambda e, x: None):
     Decorator for functions that should be retried upon error.
 
     :param ex: The class of the exception to catch, or an iterable of classes
-    :param times: The maximum number of times to retry
-    :param interval: The amount of time to sleep between retries
-    :param on_error: A function to be called when the decorated
+    :type ex: class or iterable
+    :param int times: The maximum number of times to retry
+    :param float interval: How long to sleep in between attempts in seconds
+    :param function on_error: A function to be called when the decorated
         function throws an exception.
-        * If ``on_error()`` takes no parameters, it will be called without arguments.
-        * If ``on_error(exception)`` takes one parameter,
-          it will be called with the exception that was raised.
-        * If ``on_error(exception, retry_count)`` takes two parameters,
-          it will be called with the exception that was raised and the number
-          of previous attempts (starting at 0).
+
+        If ``on_error()`` takes no parameters,
+        it will be called without arguments.
+
+        If ``on_error(exception)`` takes one parameter,
+        it will be called with the exception that was raised.
+
+        If ``on_error(exception, retry_count)`` takes two parameters,
+        it will be called with the exception that was raised and
+        the number of previous attempts (starting at 0).
+
         A typical use of ``on_error`` would be to log the exception.
 
     :return: The return value of the decorated function
+    :raises TimeoutError: The function did not succeed
+        within the specified timeout.
     """
     def decorator(f):
         @wraps(f)
@@ -82,43 +94,66 @@ def retry_(f, ex, times=3, interval=1, on_error=lambda e, x: None, *args, **kwar
     """
     Call a function and try again if it throws a specified exception.
 
-    :param f: The function to retry
+    :param funciton f: The function to retry
     :param ex: The class of the exception to catch, or an iterable of classes
-    :param times: The maximum number of times to retry
-    :param interval: The amount of time to sleep between retries
-    :param on_error: A function to be called when ``f`` throws an exception.
-        * If ``on_error()`` takes no parameters, it will be called without arguments.
-        * If ``on_error(exception)`` takes one parameter,
-          it will be called with the exception that was raised.
-        * If ``on_error(exception, retry_count)`` takes two parameters,
-          it will be called with the exception that was raised and the number
-          of previous attempts (starting at 0).
+    :type ex: class or iterable
+    :param int times: The maximum number of times to retry
+    :param float interval: How long to sleep in between attempts in seconds
+    :param function on_error: A function to be called when
+        ``f`` throws an exception.
+
+        If ``on_error()`` takes no parameters, it will be called
+        without arguments.
+
+        If ``on_error(exception)`` takes one parameter,
+        it will be called with the exception that was raised.
+
+        If ``on_error(exception, retry_count)`` takes two parameters,
+        it will be called with the exception that was raised and the
+        number of previous attempts (starting at 0).
+
         A typical use of ``on_error`` would be to log the exception.
 
     Any other arguments are forwarded to ``f``.
 
     :return: The final return value of the function ``f``.
+    :raises TimeoutError: The function did not succeed
+        within the specified timeout.
     """
     return exec_(f, ex, lambda _: True, times, float("inf"), interval, on_error, *args, **kwargs)
 
 
 def circuitbreaker(ex, threshold, reset_timeout, on_error=lambda e: None):
     """
-    Decorator for functions which should be retried using the
+    Decorator for functions which should 'back off' using the
     Circuit Breaker pattern: http://martinfowler.com/bliki/CircuitBreaker.html
 
+    This implementation of Circuit Breaker uses a 'leaky bucket' form
+    of failure counting. For example, if `threshold` is 3 and
+    `reset_timeout` is 60, then the circuit will be broken if the call
+    fails three times *within a sixty-second period*. The circuit breaker
+    is lenient towards intermittent failures.
+
     :param ex: The class of the exception to catch, or an iterable of classes.
-    :param threshold: The number of times a failure can occur before
+    :type ex: class or iterable
+    :param int threshold: The number of times a failure can occur before
         the circuit is broken.
-    :param reset_timeout: The length of time, in seconds, that a broken
-        circuit should remain broken.
-    :param on_error: A function to be called when the
+    :param float reset_timeout: The length of time, in seconds,
+        that a broken circuit should remain broken.
+    :param function on_error: A function to be called when the
         decorated function throws an exception.
-            * If ``on_error()`` takes no parameters,
-              it will be called without arguments.
-            * If ``on_error(exception)`` takes one parameter,
-              it will be called with the exception that was raised.
+
+        If ``on_error()`` takes no parameters,
+        it will be called without arguments.
+
+        If ``on_error(exception)`` takes one parameter,
+        it will be called with the exception that was raised.
+
         A typical use of ``on_error`` would be to log the exception.
+
+    :return: The final return value of the function ``f``.
+    :raises CircuitBrokenError: The operation was
+        not carried out because the circuit is broken.
     """
 
     if isinstance(ex, collections.Iterable):
@@ -200,27 +235,35 @@ def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: N
     """
     General function for polling, retrying, and handling errors.
 
-    :param f: The function to retry
+    :param function f: The function to retry
     :param ex: The class of the exception to catch, or an iterable of classes
-    :param until: The success condition.
+    :type ex: class or iterable
+    :param function until: The success condition.
         ``until`` should be a function; it will be called with
         the return value of the function.
         ``until(x)`` should return ``True`` if the operation was successful
         (and retrying should stop) and ``False`` if retrying should continue.
-    :param times: The maximum number of times to retry
-    :param interval: The amount of time to sleep between retries
-    :param on_error: A function to be called when ``f`` throws an exception.
-        * If ``on_error()`` takes no parameters, it will be called without arguments.
-        * If ``on_error(exception)`` takes one parameter,
-          it will be called with the exception that was raised.
-        * If ``on_error(exception, retry_count)`` takes two parameters,
-          it will be called with the exception that was raised and the number
-          of previous attempts (starting at 0).
+    :param int times: The maximum number of times to retry
+    :param float interval: How long to sleep in between attempts in seconds
+    :param function on_error: A function to be called when ``f`` throws an exception.
+
+        If ``on_error()`` takes no parameters,
+        it will be called without arguments.
+
+        If ``on_error(exception)`` takes one parameter,
+        it will be called with the exception that was raised.
+
+        If ``on_error(exception, retry_count)`` takes two parameters,
+        it will be called with the exception that was raised and the
+        number of previous attempts (starting at 0).
+
         A typical use of ``on_error`` would be to log the exception.
 
     Any other arguments are forwarded to ``f``.
 
     :return: The final return value of the function ``f``.
+    :raises TimeoutError: The call did not succeed
+        within the specified timeout.
     """
     if isinstance(ex, collections.Iterable):
         exs = tuple(ex)
@@ -242,17 +285,24 @@ def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: N
                 return result
         time.sleep(interval)
         if time.perf_counter() - start_time > timeout:
-            raise TimeoutError("The operation {} timed out after {} seconds".format(f.__name__, timeout))
+            msg = "The operation '{}' timed out after {} seconds and {} attempts".format(
+                f.__name__,
+                timeout,
+                count
+            )
+            raise TimeoutError(msg)
 
 
 class CircuitBrokenError(Exception):
+    """
+    Exception to indicate that the operation was
+    not carried out because the circuit is broken.
+    """
     def __init__(self, message="", time_remaining=0):
         super().__init__(message)
         self.time_remaining = time_remaining
 
 
 def _call_with_correct_number_of_args(f, args):
-    # if f takes 0, 1 or 2 arguments, supply none, one, or both of (e, count)
     arg_count = len(inspect.signature(f).parameters)
     f(*args[:arg_count])
-
