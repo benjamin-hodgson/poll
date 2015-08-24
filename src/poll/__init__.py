@@ -102,7 +102,7 @@ def retry_(f, ex, times=3, interval=1, on_error=lambda e, x: None, *args, **kwar
     return exec_(f, ex, lambda _: True, times, float("inf"), interval, on_error, *args, **kwargs)
 
 
-def circuitbreaker(ex, threshold, reset_timeout):
+def circuitbreaker(ex, threshold, reset_timeout, on_error=lambda e: None):
     """
     Decorator for functions which should be retried using the
     Circuit Breaker pattern: http://martinfowler.com/bliki/CircuitBreaker.html
@@ -112,6 +112,13 @@ def circuitbreaker(ex, threshold, reset_timeout):
         the circuit is broken.
     :param reset_timeout: The length of time, in seconds, that a broken
         circuit should remain broken.
+    :param on_error: A function to be called when the
+        decorated function throws an exception.
+            * If ``on_error()`` takes no parameters,
+              it will be called without arguments.
+            * If ``on_error(exception)`` takes one parameter,
+              it will be called with the exception that was raised.
+        A typical use of ``on_error`` would be to log the exception.
     """
 
     if isinstance(ex, collections.Iterable):
@@ -120,7 +127,7 @@ def circuitbreaker(ex, threshold, reset_timeout):
         exs = (ex,)
 
     def decorator(f):
-        failure_counter = _Circuit(threshold, reset_timeout)
+        failure_counter = _FailureCounter(threshold, reset_timeout)
 
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -133,6 +140,7 @@ def circuitbreaker(ex, threshold, reset_timeout):
             try:
                 result = f(*args, **kwargs)
             except BaseException as e:
+                _call_with_correct_number_of_args(on_error, (e,))
                 if isinstance(e, exs):
                     failure_counter.add_failure()
                 raise
@@ -143,7 +151,7 @@ def circuitbreaker(ex, threshold, reset_timeout):
     return decorator
 
 
-class _Circuit(object):
+class _FailureCounter(object):
     def __init__(self, threshold, timeout):
         self._failure_times = collections.deque()
         self._threshold = threshold
@@ -225,9 +233,7 @@ def exec_(f, ex, until, times=3, timeout=15, interval=1, on_error=lambda e, x: N
         try:
             result = f(*args, **kwargs)
         except BaseException as e:
-            # if on_error takes 0, 1 or 2 arguments, supply none, one, or both of (e, count)
-            arg_count = len(inspect.signature(on_error).parameters)
-            on_error(*(e, count)[:arg_count])
+            _call_with_correct_number_of_args(on_error, (e, count))
             count += 1
             if count >= times or not isinstance(e, exs):
                 raise
@@ -243,3 +249,10 @@ class CircuitBrokenError(Exception):
     def __init__(self, message="", time_remaining=0):
         super().__init__(message)
         self.time_remaining = time_remaining
+
+
+def _call_with_correct_number_of_args(f, args):
+    # if f takes 0, 1 or 2 arguments, supply none, one, or both of (e, count)
+    arg_count = len(inspect.signature(f).parameters)
+    f(*args[:arg_count])
+

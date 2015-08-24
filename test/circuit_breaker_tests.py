@@ -33,10 +33,16 @@ class WhenAFunctionWithCircuitBreakerDoesNotThrow:
         return self.expected_return_value
 
 
-class WhenAFunctionWithCircuitBreakerThrowsOnce:
+class WhenAFunctionWithCircuitBreakerThrowsOnceAndTheOnErrorCallbackHasNoParams:
     def given_an_exception_to_throw(self):
         self.x = 0
         self.expected_exception = ValueError()
+
+        @circuitbreaker(ValueError, threshold=3, reset_timeout=1, on_error=self.on_error_callback)
+        def function_to_break():
+            self.x += 1
+            raise self.expected_exception
+        self.function_to_break = function_to_break
 
     def when_i_call_the_circuit_breaker_function(self):
         self.exception = contexts.catch(self.function_to_break)
@@ -44,13 +50,41 @@ class WhenAFunctionWithCircuitBreakerThrowsOnce:
     def it_should_bubble_the_exception_out(self):
         assert self.exception is self.expected_exception
 
-    def it_should_call_it_once(self):
+    def it_should_call_the_function_to_break_once(self):
         assert self.x == 1
 
-    @circuitbreaker(ValueError, threshold=3, reset_timeout=1)
-    def function_to_break(self):
-        self.x += 1
-        raise self.expected_exception
+    def it_should_call_the_on_error_callback(self):
+        assert self.on_error_called
+
+    def on_error_callback(self):
+        self.on_error_called = True
+
+
+class WhenAFunctionWithCircuitBreakerThrowsOnceAndTheOnErrorCallbackHasOneParam:
+    def given_an_exception_to_throw(self):
+        self.x = 0
+        self.expected_exception = ValueError()
+
+        @circuitbreaker(ValueError, threshold=3, reset_timeout=1, on_error=self.on_error_callback)
+        def function_to_break():
+            self.x += 1
+            raise self.expected_exception
+        self.function_to_break = function_to_break
+
+    def when_i_call_the_circuit_breaker_function(self):
+        self.exception = contexts.catch(self.function_to_break)
+
+    def it_should_bubble_the_exception_out(self):
+        assert self.exception is self.expected_exception
+
+    def it_should_call_the_function_to_break_once(self):
+        assert self.x == 1
+
+    def it_should_call_the_on_error_callback(self):
+        assert self.on_error_result is self.expected_exception
+
+    def on_error_callback(self, ex):
+        self.on_error_result = ex
 
 
 class WhenACircuitBreakerIsOnTheThresholdOfBreaking:
