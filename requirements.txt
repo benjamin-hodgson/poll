@@ -1,0 +1,4 @@
+sphinx
+flake8
+contexts
+colorama
