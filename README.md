@@ -3,6 +3,7 @@
 
 [![Build Status](https://travis-ci.org/benjamin-hodgson/poll.svg)](https://travis-ci.org/benjamin-hodgson/poll)
 [![Documentation Status](https://readthedocs.org/projects/poll/badge/?version=v1.0)](https://readthedocs.org/projects/poll/?badge=v0.1)
+[![Requirements Status](https://requires.io/github/benjamin-hodgson/poll/requirements.svg?branch=master)](https://requires.io/github/benjamin-hodgson/poll/requirements/?branch=master)
 
 Utilities for polling, retrying, and exception handling,
 inspired by [Polly](https://github.com/michael-wolfenden/Polly).
